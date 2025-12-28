@@ -125,6 +125,49 @@ const App: React.FC = () => {
       setDarkMode(false);
   };
 
+  // --- Data Backup & Restore ---
+  const handleExportData = () => {
+      const data: Record<string, any> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('cs_')) {
+              try {
+                const item = localStorage.getItem(key);
+                if(item) data[key] = JSON.parse(item);
+              } catch (e) {
+                console.error("Skipping non-JSON item", key);
+              }
+          }
+      }
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `creator-studio-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+  };
+
+  const handleImportData = (file: File) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+          try {
+              const data = JSON.parse(e.target?.result as string);
+              Object.keys(data).forEach(key => {
+                  if (key.startsWith('cs_')) {
+                      localStorage.setItem(key, JSON.stringify(data[key]));
+                  }
+              });
+              window.location.reload();
+          } catch (err) {
+              alert("Failed to import data. Invalid JSON file.");
+          }
+      };
+      reader.readAsText(file);
+  };
+
   const currentBg = backgrounds[bgIndex] || PRESET_BACKGROUNDS[0];
 
   // Glass transparency logic:
@@ -168,6 +211,8 @@ const App: React.FC = () => {
             onResetTheme={handleResetTheme}
             userProfile={userProfile}
             setUserProfile={setUserProfile}
+            onExportData={handleExportData}
+            onImportData={handleImportData}
         />
       </aside>
       

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ContentProject, JournalEntry, ProjectLog } from '../types';
-import { BarChart2, PieChart, Activity, Smile, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BarChart2, PieChart, Activity, Smile, Zap, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
 
 interface StatsViewProps {
   projects: ContentProject[];
@@ -18,6 +18,8 @@ const moodColors: Record<string, string> = {
     'Tired': '#6366F1', // Indigo
     'Nothing': '#E5E7EB', // White/Light Gray
 };
+
+const stopWords = new Set(['the', 'and', 'a', 'to', 'of', 'in', 'i', 'is', 'that', 'it', 'on', 'you', 'this', 'for', 'but', 'with', 'are', 'have', 'be', 'at', 'or', 'as', 'was', 'so', 'if', 'out', 'not', 'did', 'do', 'my', 'me', 'am', 'will', 'just', 'can', 'all', 'up', 'from', 'about', 'how', 'what', 'when', 'where', 'why', 'who']);
 
 const StatsView: React.FC<StatsViewProps> = ({ projects, journalEntries, projectLogs }) => {
   const [range, setRange] = useState<TimeRange>('WEEK');
@@ -108,6 +110,34 @@ const StatsView: React.FC<StatsViewProps> = ({ projects, journalEntries, project
       });
   }, [journalEntries, startDate, endDate]);
 
+  // 4. Word Cloud Data
+  const wordCloudData = useMemo(() => {
+      const textMap: Record<string, number> = {};
+      const processText = (text: string) => {
+          if (!text) return;
+          // Normalize: lowercase, remove non-alphanumeric (keep spaces), split
+          const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
+          words.forEach(w => {
+              if (w.length > 3 && !stopWords.has(w)) {
+                  textMap[w] = (textMap[w] || 0) + 1;
+              }
+          });
+      };
+
+      // Process Journal Entries
+      journalEntries.forEach(e => {
+          const d = new Date(e.date);
+          if (d >= startDate && d <= endDate) processText(e.content);
+      });
+      
+      // Process Logs
+      logsInRange.forEach(l => processText(l.content));
+
+      return Object.entries(textMap)
+          .sort((a,b) => b[1] - a[1]) // Sort by frequency desc
+          .slice(0, 30); // Top 30
+  }, [journalEntries, logsInRange, startDate, endDate]);
+
 
   // --- CHART DATA GENERATION ---
 
@@ -184,12 +214,14 @@ const StatsView: React.FC<StatsViewProps> = ({ projects, journalEntries, project
 
   // Max value for scaling charts
   const maxActivity = Math.max(...activityData.map(d => d.tasks + d.logs), 5);
+  // Max word frequency for scaling word cloud
+  const maxWordFreq = wordCloudData.length > 0 ? wordCloudData[0][1] : 1;
 
   return (
     <div className="p-8 h-full overflow-y-auto bg-transparent text-gray-900 dark:text-gray-100 flex flex-col gap-8">
         
         {/* Header & Controls */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
             <div>
                 <h1 className="text-4xl font-bold tracking-tight mb-2">Statistics</h1>
                 <p className="opacity-60 text-sm">Insights into your productivity and wellbeing.</p>
@@ -224,7 +256,7 @@ const StatsView: React.FC<StatsViewProps> = ({ projects, journalEntries, project
         </header>
 
         {/* Top Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
             <div className="bg-white/60 dark:bg-black/40 backdrop-blur-xl p-6 rounded-3xl border border-white/50 dark:border-white/5 shadow-sm">
                 <div className="flex items-center gap-3 opacity-60 mb-2">
                     <Activity size={18} />
@@ -252,7 +284,7 @@ const StatsView: React.FC<StatsViewProps> = ({ projects, journalEntries, project
         </div>
 
         {/* Main Charts Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
             {/* Chart 1: Productivity Bar Chart */}
             <div className="bg-white/50 dark:bg-black/30 backdrop-blur-2xl rounded-3xl p-8 border border-white/50 dark:border-white/5 shadow-lg flex flex-col h-[400px]">
@@ -260,12 +292,6 @@ const StatsView: React.FC<StatsViewProps> = ({ projects, journalEntries, project
                     <BarChart2 size={18} className="opacity-60"/> Productivity
                 </h3>
                 
-                {/* 
-                    Layout Fix: 
-                    Use gap-1 for MONTH view (approx 30 items) to prevent overflow. 
-                    Use gap-4 for WEEK/YEAR view (7-12 items) for better aesthetics.
-                    Added min-w-0 to flex children to allow shrinking.
-                */}
                 <div className={`flex-1 flex items-end ${range === 'MONTH' ? 'gap-1' : 'gap-4'} relative w-full`}>
                     {/* Grid Lines */}
                     <div className="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
@@ -309,7 +335,7 @@ const StatsView: React.FC<StatsViewProps> = ({ projects, journalEntries, project
             </div>
 
             {/* Chart 2: Mood Stats */}
-            <div className="bg-white/50 dark:bg-black/30 backdrop-blur-2xl rounded-3xl p-8 border border-white/50 dark:border-white/5 shadow-lg flex flex-col min-h-[400px]">
+            <div className="bg-white/50 dark:bg-black/30 backdrop-blur-2xl rounded-3xl p-8 border border-white/50 dark:border-white/5 shadow-lg flex flex-col h-[400px]">
                 <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
                     <PieChart size={18} className="opacity-60"/> Mood Distribution
                 </h3>
@@ -344,7 +370,7 @@ const StatsView: React.FC<StatsViewProps> = ({ projects, journalEntries, project
                     </div>
                 ) : (
                     // WEEK/MONTH VIEW: Simple Distribution
-                    <div className="flex-1 flex flex-col items-center justify-center">
+                    <div className="flex-1 flex flex-col items-center justify-center overflow-y-auto">
                         {moodStats.length === 0 ? (
                             <div className="opacity-40 text-sm italic">No mood data recorded for this period.</div>
                         ) : (
@@ -371,6 +397,40 @@ const StatsView: React.FC<StatsViewProps> = ({ projects, journalEntries, project
                     </div>
                 )}
             </div>
+
+            {/* Feature: Word Cloud (Recurring Topics) */}
+             <div className="col-span-1 lg:col-span-2 bg-white/50 dark:bg-black/30 backdrop-blur-2xl rounded-3xl p-8 border border-white/50 dark:border-white/5 shadow-lg flex flex-col">
+                <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                    <MessageSquare size={18} className="opacity-60"/> Recurring Topics
+                </h3>
+                
+                {wordCloudData.length === 0 ? (
+                     <div className="flex-1 flex items-center justify-center min-h-[150px] opacity-40 text-sm italic">
+                        Write more journal entries or task logs to see recurring topics.
+                     </div>
+                ) : (
+                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-4 min-h-[150px] items-center">
+                        {wordCloudData.map(([word, count]) => {
+                            // Simple size calculation: relative to max, between 0.75rem and 3rem
+                            const sizeRatio = count / maxWordFreq;
+                            const fontSize = `${0.8 + (sizeRatio * 2)}rem`;
+                            const opacity = 0.5 + (sizeRatio * 0.5);
+                            
+                            return (
+                                <span 
+                                    key={word} 
+                                    className="font-bold transition-all hover:scale-110 hover:text-blue-500 cursor-default"
+                                    style={{ fontSize, opacity }}
+                                    title={`${count} occurrences`}
+                                >
+                                    {word}
+                                </span>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
         </div>
     </div>
   );

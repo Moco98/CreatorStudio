@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ViewState, UserProfile } from '../types';
-import { Layout, Calendar, User, Moon, Sun, Image as ImageIcon, Upload, RotateCcw, BarChart2, X, Check, Camera, Smile } from 'lucide-react';
+import { Layout, Calendar, User, Moon, Sun, Image as ImageIcon, Upload, RotateCcw, BarChart2, X, Check, Camera, Smile, Download, FileJson } from 'lucide-react';
 
 interface SidebarProps {
   currentView: ViewState;
@@ -14,6 +14,8 @@ interface SidebarProps {
   onResetTheme: () => void;
   userProfile: UserProfile;
   setUserProfile: React.Dispatch<React.SetStateAction<UserProfile>>;
+  onExportData: () => void;
+  onImportData: (file: File) => void;
 }
 
 const MEMOJI_PRESETS = [
@@ -26,9 +28,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     bgIndex, setBgIndex, backgrounds,
     onUploadBackground,
     onResetTheme,
-    userProfile, setUserProfile
+    userProfile, setUserProfile,
+    onExportData,
+    onImportData
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dataInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [tempProfile, setTempProfile] = useState<UserProfile>(userProfile);
@@ -46,6 +51,16 @@ const Sidebar: React.FC<SidebarProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           onUploadBackground(e.target.files[0]);
+      }
+  };
+  
+  const handleDataImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          if (confirm("Restoring data will overwrite your current data. Are you sure?")) {
+            onImportData(e.target.files[0]);
+          }
+          // Reset value so we can select the same file again if needed
+          e.target.value = '';
       }
   };
 
@@ -204,29 +219,51 @@ const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Appearance Controls */}
             <div className="px-2 mb-6 space-y-2">
-                <div className="text-[10px] font-bold opacity-40 uppercase tracking-widest px-1">Appearance</div>
-                <div className="flex gap-2">
+                <div className="text-[10px] font-bold opacity-40 uppercase tracking-widest px-1">Settings</div>
+                <div className="grid grid-cols-4 gap-2">
                     <button 
                         onClick={() => setDarkMode(!darkMode)}
-                        className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 transition-all backdrop-blur-sm"
-                        title="Toggle Dark Mode"
+                        className="flex items-center justify-center py-2 rounded-lg bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 transition-all backdrop-blur-sm"
+                        title={darkMode ? 'Light Mode' : 'Dark Mode'}
                     >
-                        {darkMode ? <Moon size={16} /> : <Sun size={16} />}
-                        <span className="text-xs font-medium">{darkMode ? 'Dark' : 'Light'}</span>
+                        {darkMode ? <Sun size={16} /> : <Moon size={16} />}
                     </button>
                     <button 
                         onClick={cycleBackground}
-                        className="w-10 flex items-center justify-center py-2 rounded-lg bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 transition-all backdrop-blur-sm"
+                        className="flex items-center justify-center py-2 rounded-lg bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 transition-all backdrop-blur-sm"
                         title="Next Theme"
                     >
                         <ImageIcon size={16} />
                     </button>
                     <button 
+                        onClick={onExportData}
+                        className="flex items-center justify-center py-2 rounded-lg bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 transition-all backdrop-blur-sm"
+                        title="Backup Data"
+                    >
+                        <Download size={16} />
+                    </button>
+                    <button 
+                        onClick={() => dataInputRef.current?.click()}
+                        className="flex items-center justify-center py-2 rounded-lg bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 transition-all backdrop-blur-sm group/import"
+                        title="Restore Data"
+                    >
+                        <Upload size={16} className="group-hover/import:text-blue-500"/>
+                        <input 
+                            type="file" 
+                            ref={dataInputRef} 
+                            className="hidden" 
+                            accept=".json"
+                            onChange={handleDataImport}
+                        />
+                    </button>
+                </div>
+                 <div className="grid grid-cols-2 gap-2 mt-1">
+                     <button 
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-10 flex items-center justify-center py-2 rounded-lg bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 transition-all backdrop-blur-sm"
+                        className="flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 transition-all backdrop-blur-sm text-[10px] font-bold opacity-70 hover:opacity-100"
                         title="Upload Custom Background"
                     >
-                        <Upload size={16} />
+                        <ImageIcon size={12} /> BG Image
                         <input 
                             type="file" 
                             ref={fileInputRef} 
@@ -237,10 +274,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                     <button 
                         onClick={onResetTheme}
-                        className="w-10 flex items-center justify-center py-2 rounded-lg bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 transition-all backdrop-blur-sm"
+                        className="flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 transition-all backdrop-blur-sm text-[10px] font-bold opacity-70 hover:opacity-100"
                         title="Reset to Default"
                     >
-                        <RotateCcw size={16} />
+                        <RotateCcw size={12} /> Reset
                     </button>
                 </div>
             </div>

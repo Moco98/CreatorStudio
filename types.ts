@@ -15,7 +15,8 @@ export interface SubTask {
   id: string;
   title: string;
   isCompleted: boolean;
-  startDate: string; // YYYY-MM-DD, Mandatory for timeline
+  startDate: string; // YYYY-MM-DD
+  endDate?: string;  // YYYY-MM-DD, Optional, derived from logs or set manually
   completedAt?: number; // Timestamp for statistics
 }
 
@@ -54,9 +55,17 @@ export interface CalendarEvent {
 export interface JournalEntry {
   id: string;
   date: string; // YYYY-MM-DD
-  mood: string; // Emoji
+  mood: string; // Emoji char
+  moodColor?: string; // Hex color linked to mood
   content: string;
   lastUpdated: number;
+}
+
+export interface MoodPreset {
+    id: string;
+    label: string;
+    emoji: string;
+    color: string; // Hex
 }
 
 export interface DailyTodo {
